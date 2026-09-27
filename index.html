@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1728" />
+    <meta
+      name="description"
+      content="Adloab — لوحة عربية لإدارة الحملات وتحليل الزيارات الموثوقة."
+    />
+    <title>Adloab · لوحة النمو</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell" id="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="القائمة الرئيسية">
+        <div class="sidebar-top">
+          <a class="brand" href="#" data-view="overview" aria-label="Adloab، الصفحة الرئيسية">
+            <span class="brand-mark" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </span>
+            <span class="brand-copy">
+              <strong>Adloab</strong>
+              <small>growth OS</small>
+            </span>
+          </a>
+
+          <button class="workspace-switcher" type="button" data-action="workspace-menu">
+            <span class="workspace-avatar">م</span>
+            <span class="workspace-copy">
+              <strong>مساحة مدار</strong>
+              <small>خطة الفريق · تجريبية</small>
+            </span>
+            <span class="workspace-chevron" data-icon="chevron-down"></span>
+          </button>
+
+          <nav class="primary-nav" aria-label="التنقل">
+            <p class="nav-label">مساحتك</p>
+            <button class="nav-item active" type="button" data-view="overview">
+              <span data-icon="layout-dashboard"></span>
+              <span>نظرة عامة</span>
+              <span class="nav-indicator"></span>
+            </button>
+            <button class="nav-item" type="button" data-view="campaigns">
+              <span data-icon="megaphone"></span>
+              <span>الحملات</span>
+              <span class="nav-count">6</span>
+            </button>
+            <button class="nav-item" type="button" data-view="analytics">
+              <span data-icon="chart-no-axes-combined"></span>
+              <span>التحليلات</span>
+            </button>
+            <button class="nav-item" type="button" data-view="tools">
+              <span data-icon="wand-sparkles"></span>
+              <span>أدوات النمو</span>
+              <span class="new-dot">جديد</span>
+            </button>
+
+            <p class="nav-label nav-label-spaced">البيانات</p>
+            <button class="nav-item" type="button" data-view="sources">
+              <span data-icon="plug-zap"></span>
+              <span>مصادر البيانات</span>
+              <span class="nav-count subtle">3</span>
+            </button>
+            <button class="nav-item" type="button" data-view="compliance">
+              <span data-icon="shield-check"></span>
+              <span>الثقة والامتثال</span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="sidebar-bottom">
+          <div class="trust-mini-card">
+            <div class="trust-mini-head">
+              <span class="live-dot"></span>
+              <span>المراقبة تعمل</span>
+              <strong>92%</strong>
+            </div>
+            <div class="mini-progress"><span></span></div>
+            <p>إشارات الزيارات الموثوقة مستقرة اليوم.</p>
+            <button type="button" data-view="compliance">عرض التقرير <span data-icon="arrow-left"></span></button>
+          </div>
+          <button class="nav-item settings-link" type="button" data-view="settings">
+            <span data-icon="settings-2"></span>
+            <span>الإعدادات</span>
+          </button>
+          <div class="sidebar-user">
+            <span class="user-avatar">س</span>
+            <span class="sidebar-user-copy">
+              <strong>سارة الحربي</strong>
+              <small>مالك المساحة</small>
+            </span>
+            <button type="button" class="icon-button tiny" data-action="profile-menu" aria-label="خيارات الحساب">
+              <span data-icon="more-horizontal"></span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+      <main class="main-area">
+        <header class="topbar">
+          <div class="topbar-leading">
+            <button class="icon-button menu-toggle" type="button" data-action="toggle-sidebar" aria-label="فتح القائمة">
+              <span data-icon="menu"></span>
+            </button>
+            <div class="breadcrumb-wrap">
+              <span class="breadcrumb-muted">مساحة مدار</span>
+              <span data-icon="chevron-left" class="breadcrumb-chevron"></span>
+              <strong id="page-title">نظرة عامة</strong>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <span class="environment-pill"><span></span> بيئة تجريبية</span>
+            <button class="date-button" type="button" data-action="range-menu">
+              <span data-icon="calendar-days"></span>
+              <span id="current-range-label">آخر 7 أيام</span>
+              <span data-icon="chevron-down"></span>
+            </button>
+            <button class="icon-button notification-button" type="button" data-action="notifications" aria-label="الإشعارات">
+              <span data-icon="bell"></span>
+              <i></i>
+            </button>
+            <button class="top-avatar" type="button" data-action="profile-menu" aria-label="حساب سارة الحربي">س</button>
+          </div>
+          <div class="floating-menu date-menu" id="date-menu" hidden>
+            <button type="button" data-range="7d">آخر 7 أيام <span>الأكثر استخداماً</span></button>
+            <button type="button" data-range="30d">آخر 30 يوماً</button>
+            <button type="button" data-range="90d">آخر 90 يوماً</button>
+          </div>
+          <div class="floating-menu notification-menu" id="notification-menu" hidden>
+            <div class="menu-heading"><strong>الإشعارات</strong><button type="button" data-action="mark-read">تحديد كمقروء</button></div>
+            <div class="notification-row"><span class="notification-icon green" data-icon="check-check"></span><div><strong>تم تحديث مزامنة GA4</strong><small>منذ 12 دقيقة</small></div></div>
+            <div class="notification-row"><span class="notification-icon purple" data-icon="sparkles"></span><div><strong>اقتراح جديد للحملة العضوية</strong><small>منذ ساعة</small></div></div>
+            <div class="notification-row"><span class="notification-icon orange" data-icon="triangle-alert"></span><div><strong>وسم UTM ناقص في رابط واحد</strong><small>منذ 3 ساعات</small></div></div>
+          </div>
+        </header>
+
+        <section class="page-content" id="app-content" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <div id="modal-root"></div>
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
