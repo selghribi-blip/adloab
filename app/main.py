@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import store as db
+from .alerts import alert_status, load_alert_settings, notify
 from .checker import make_client, run_check
 from .config import ROOT, NotOwnedError, load_targets
 from .scheduler import check_all, loop
@@ -74,11 +75,11 @@ def status() -> dict:
     return {
         "targets": payload,
         "incidents_open": db.incidents(limit=10, only_open=True),
+        "alerts": alert_status(load_alert_settings()),
         "settings": {
             "concurrency": _state["settings"].concurrency,
             "timeout_seconds": _state["settings"].timeout_seconds,
             "failure_threshold": _state["settings"].failure_threshold,
-            "alerts_enabled": _state["settings"].alerts_enabled,
             "storage": db.backend_name(),
         },
     }
@@ -121,6 +122,19 @@ async def trigger_check(target_id: str) -> dict:
 async def trigger_check_all() -> dict:
     results = await check_all(_state["settings"], _state["targets"])
     return {"count": len(results), "ok": sum(1 for r in results if r.get("ok"))}
+
+
+@app.post("/api/alerts/test")
+async def alerts_test() -> dict:
+    """إرسال تنبيه تجريبي للتحقق من إعدادات Telegram/Webhook من اللوحة."""
+    alerts = load_alert_settings()
+    if not alerts.telegram_ready and not alerts.webhook_url:
+        raise HTTPException(
+            status_code=400,
+            detail="لا توجد قناة تنبيه مهيّأة — اضبط TELEGRAM_BOT_TOKEN وTELEGRAM_CHAT_ID",
+        )
+    sent = await notify(None, {"ok": True, "ts": __import__("time").time()}, "test", alerts, force=True)
+    return {"sent": sent, "channels": alert_status(alerts)["channels"]}
 
 
 @app.get("/api/config/domains")

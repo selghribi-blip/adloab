@@ -36,8 +36,6 @@ class Settings:
     user_agent: str = "AdloabUptimeBot/1.0 (uptime monitoring; owner-verified)"
     max_body_kb: int = 64
     failure_threshold: int = 2
-    alert_webhook: str = ""
-    alerts_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -100,14 +98,6 @@ def load_targets() -> tuple[Settings, list[Target]]:
 
     raw = yaml.safe_load(TARGETS_FILE.read_text(encoding="utf-8")) or {}
     settings = Settings(**(raw.get("settings") or {}))
-
-    # متغير البيئة يتقدّم على ملف الإعداد (مفيد في CI / الاستضافة)
-    env_webhook = os.getenv("ALERT_WEBHOOK_URL", "").strip()
-    if env_webhook:
-        settings = Settings(**{**settings.__dict__, "alert_webhook": env_webhook})
-
-    if settings.alert_webhook:
-        settings = Settings(**{**settings.__dict__, "alerts_enabled": True})
 
     owned = load_owned_domains()
     targets: list[Target] = []

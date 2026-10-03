@@ -70,3 +70,15 @@ def incidents(limit: int = 50, only_open: bool = False) -> list[dict[str, Any]]:
 
 def consecutive_failures(target_id: str) -> int:
     return _impl().consecutive_failures(target_id)
+
+
+def alert_last_sent(target_id: str, kind: str) -> float | None:
+    return _impl().alert_last_sent(target_id, kind)
+
+
+def alert_mark_sent(target_id: str, kind: str, ts: float | None = None) -> None:
+    _impl().alert_mark_sent(target_id, kind, ts)
+
+
+def count_consecutive_slow(target_id: str, threshold_ms: float, limit: int = 10) -> int:
+    return _impl().count_consecutive_slow(target_id, threshold_ms, limit)

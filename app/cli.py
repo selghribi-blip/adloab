@@ -5,6 +5,8 @@
     python -m app.cli check --json     # النتيجة بصيغة JSON
     python -m app.cli status           # ملخّص آخر 24 ساعة
     python -m app.cli domains          # النطاقات المسموح بفحصها
+    python -m app.cli test-alert       # إرسال رسالة تجريبية إلى Telegram
+    python -m app.cli telegram-id      # معرفة رقم محادثتك (chat_id)
 """
 
 from __future__ import annotations
@@ -14,7 +16,10 @@ import asyncio
 import json
 import sys
 
+import httpx
+
 from . import store as db
+from .alerts import alert_status, load_alert_settings, notify
 from .config import load_owned_domains, load_targets
 from .scheduler import check_all
 
@@ -54,8 +59,79 @@ def _run_status() -> int:
         print(
             f"{target.name:<28} {mark:<8} "
             f"{(stats['uptime_pct'] if stats['uptime_pct'] is not None else 0):<9} "
-            f"{(stats['avg_ms'] or 0):<10} {stats['tls_days_left'] if stats['tls_days_left'] is not None else '-'}"
+            f"{(stats['avg_ms'] or 0):<10} "
+            f"{stats['tls_days_left'] if stats['tls_days_left'] is not None else '-'}"
         )
+
+    print("\nقنوات التنبيه: " + alert_status(load_alert_settings())["channels"])
+    return 0
+
+
+async def _run_test_alert() -> int:
+    """إرسال رسالة تجريبية للتحقق من صحة التوكن ورقم المحادثة."""
+    alerts = load_alert_settings()
+    if not alerts.telegram_ready and not alerts.webhook_url:
+        print("⚠️  لا توجد قناة تنبيه مهيّأة.\n")
+        print("اضبط متغيرات البيئة أولًا (واحدة من الطرق):\n")
+        print('  export TELEGRAM_BOT_TOKEN="123456:AA..."   # من @BotFather')
+        print('  export TELEGRAM_CHAT_ID="123456789"        # من @userinfobot')
+        print("\nأو املأ config/alerts.yaml، أو انسخ .env.example إلى .env واملأه.")
+        return 2
+
+    print("📨 القنوات: " + alert_status(alerts)["channels"])
+    sent = await notify(
+        None, {"ok": True, "ts": __import__("time").time()}, "test", alerts, force=True
+    )
+    if sent:
+        print("✅ تم الإرسال — راجع Telegram الآن.")
+        return 0
+    print("❌ فشل الإرسال — راجع الرسائل أعلاه (تحقق من التوكن ومن أنك أرسلت /start للبوت).")
+    return 1
+
+
+async def _run_telegram_id() -> int:
+    """معرفة chat_id: أرسل رسالة إلى بوتك ثم شغّل هذا الأمر."""
+    alerts = load_alert_settings()
+    if not alerts.telegram_bot_token:
+        print("⚠️  اضبط TELEGRAM_BOT_TOKEN أولًا (من @BotFather).")
+        return 2
+
+    url = f"https://api.telegram.org/bot{alerts.telegram_bot_token}/getUpdates"
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(url)
+        data = response.json()
+    except Exception as exc:  # noqa: BLE001
+        print(f"❌ تعذّر الاتصال بـ Telegram: {exc}")
+        return 1
+
+    if not data.get("ok"):
+        print(
+            "❌ رفض Telegram الطلب — تأكد أن التوكن صحيح.\n"
+            f"   الرد: {str(data)[:200]}"
+        )
+        return 1
+
+    chats: dict[str, str] = {}
+    for update in data.get("result", []):
+        for key in ("message", "edited_message", "channel_post", "my_chat_member"):
+            chat = (update.get(key) or {}).get("chat")
+            if chat:
+                label = chat.get("title") or " ".join(
+                    filter(None, [chat.get("first_name"), chat.get("last_name")])
+                )
+                chats[str(chat["id"])] = f"{chat.get('type')} · {label or 'بلا اسم'}"
+
+    if not chats:
+        print(
+            "لم أجد أي محادثة بعد.\n"
+            "افتح Telegram ← ابحث عن بوتك ← اضغط Start وأرسل أي رسالة ← ثم أعد تشغيل الأمر."
+        )
+        return 3
+
+    print("✅ المحادثات المتاحة (انسخ الرقم إلى TELEGRAM_CHAT_ID):\n")
+    for chat_id, label in chats.items():
+        print(f"   {chat_id}   ←  {label}")
     return 0
 
 
@@ -67,6 +143,8 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--json", action="store_true", help="إخراج JSON")
     sub.add_parser("status", help="ملخّص آخر 24 ساعة")
     sub.add_parser("domains", help="عرض النطاقات المسموح بفحصها")
+    sub.add_parser("test-alert", help="إرسال تنبيه تجريبي إلى قنوات التنبيه")
+    sub.add_parser("telegram-id", help="عرض رقم محادثة Telegram (chat_id)")
 
     args = parser.parse_args(argv)
     if args.command == "check":
@@ -76,6 +154,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "domains":
         print("\n".join(sorted(load_owned_domains())))
         return 0
+    if args.command == "test-alert":
+        return asyncio.run(_run_test_alert())
+    if args.command == "telegram-id":
+        return asyncio.run(_run_telegram_id())
     return 2
 
 

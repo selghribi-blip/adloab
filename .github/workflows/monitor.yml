@@ -25,7 +25,19 @@ jobs:
         env:
           ADLOAB_EXTRA_DOMAINS: ${{ secrets.ADLOAB_EXTRA_DOMAINS }}
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m app.cli check
+
+      - name: تنبيه Telegram عند فشل الفحص
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          echo "يفشل سير العمل عند توقف هدف ⇒ تصلك رسالة GitHub تلقائيًا."
+          echo "تنبيهات التوقف نفسها تُرسَل من أمر الفحص أعلاه عبر Telegram."
+          python -m app.cli test-alert || true
 
       - name: ملخّص آخر 24 ساعة
         if: always()

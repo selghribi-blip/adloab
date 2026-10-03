@@ -60,6 +60,13 @@ CREATE TABLE IF NOT EXISTS incidents (
     reason      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_incidents_open ON incidents(target_id, resolved_at);
+
+CREATE TABLE IF NOT EXISTS alert_state (
+    target_id    TEXT NOT NULL,
+    kind         TEXT NOT NULL,
+    last_sent_at DOUBLE PRECISION NOT NULL,
+    PRIMARY KEY (target_id, kind)
+);
 """
 
 
@@ -185,6 +192,39 @@ def consecutive_failures(target_id: str) -> int:
     count = 0
     for row in rows:
         if row["ok"]:
+            break
+        count += 1
+    return count
+
+
+# ------------------------- حالة التنبيهات (تهدئة) ------------------------- #
+
+def alert_last_sent(target_id: str, kind: str) -> float | None:
+    rows = _rows(
+        "SELECT last_sent_at FROM alert_state WHERE target_id=%s AND kind=%s",
+        (target_id, kind),
+    )
+    return float(rows[0]["last_sent_at"]) if rows else None
+
+
+def alert_mark_sent(target_id: str, kind: str, ts: float | None = None) -> None:
+    with _lock, connect() as conn:
+        conn.execute(
+            """INSERT INTO alert_state (target_id, kind, last_sent_at) VALUES (%s,%s,%s)
+               ON CONFLICT (target_id, kind) DO UPDATE SET last_sent_at=EXCLUDED.last_sent_at""",
+            (target_id, kind, ts or time.time()),
+        )
+
+
+def count_consecutive_slow(target_id: str, threshold_ms: float, limit: int = 10) -> int:
+    """كم فحصًا متتاليًا تجاوز حد البطء (من الأحدث للخلف)."""
+    rows = _rows(
+        "SELECT ok, total_ms FROM checks WHERE target_id=%s ORDER BY ts DESC LIMIT %s",
+        (target_id, limit),
+    )
+    count = 0
+    for row in rows:
+        if not row["ok"] or row["total_ms"] is None or float(row["total_ms"]) < threshold_ms:
             break
         count += 1
     return count

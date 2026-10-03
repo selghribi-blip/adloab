@@ -46,6 +46,8 @@ python -m app.cli check          # فحص فوري، يخرج بكود 1 عند 
 python -m app.cli check --json   # نتائج JSON للأنظمة الأخرى
 python -m app.cli status         # ملخّص آخر 24 ساعة
 python -m app.cli domains        # النطاقات المسموح بفحصها
+python -m app.cli test-alert     # رسالة تجريبية إلى Telegram
+python -m app.cli telegram-id    # معرفة رقم محادثتك (chat_id)
 ```
 
 > ملاحظة: الفحوصات تحتاج اتصالًا خارجيًا بالإنترنت. داخل بيئات معزولة (sandbox) ستبدو
@@ -62,16 +64,52 @@ python -m app.cli domains        # النطاقات المسموح بفحصها
 - `tls_days_left` — الأيام المتبقية لانتهاء الشهادة (تنبيه تلقائي تحت 7 أيام)
 - فحص متصفح اختياري (Playwright): عنوان الصفحة، عدّاد أخطاء console، زمن التحميل الفعلي
 
-## التنبيهات (مجانية)
+## تنبيهات Telegram (مجانية بالكامل)
 
-ضع عنوان Webhook في `config/targets.yaml` أو في متغير البيئة `ALERT_WEBHOOK_URL`:
+يُرسل النظام أربعة أنواع من التنبيهات: **توقف** 🔴 · **عودة للعمل** 🟢 ·
+**بطء متكرر** 🐢 · **قرب انتهاء شهادة SSL** 🔐 — مع فترة تهدئة تمنع الإغراق.
 
-```yaml
-settings:
-  alert_webhook: "https://ntfy.sh/your-topic"   # أو Slack / Discord / Telegram Bot API
-  alerts_enabled: true
-  failure_threshold: 2                          # عدد الإخفاقات قبل إعلان الحادثة
+### الإعداد في 3 دقائق
+
+```bash
+# 1) من داخل Telegram: افتح @BotFather ← /newbot ← انسخ التوكن
+# 2) أرسل أي رسالة إلى بوتك الجديد، ثم:
+export TELEGRAM_BOT_TOKEN="123456789:AAxxxxxxxxxxxxxxxxx"
+python -m app.cli telegram-id        # يعرض رقم محادثتك (chat_id)
+export TELEGRAM_CHAT_ID="-1001234567890"
+
+# 3) تحقق من الوصول:
+python -m app.cli test-alert         # يجيب: ✅ تم الإرسال — راجع Telegram الآن
 ```
+
+> 🔐 **قاعدة أمنية**: رمز البوت = تحكم كامل بالبوت. لا تكتبه في `config/alerts.yaml`
+> ولا في أي ملف يُرفع إلى Git. ضعه في `.env` (مستبعد في `.gitignore`) أو في
+> GitHub Secrets. انسخ `.env.example` للبدء.
+
+بديل أبسط: `chmod 600 .env` ثم `set -a; source .env; set +a` قبل تشغيل اللوحة.
+تُقرأ المتغيرات أيضًا تلقائيًا في Docker Compose من ملف `.env` المجاور.
+
+### من اللوحة
+
+في أعلى الصفحة زر **«تنبيه تجريبي»**، وقسم **«قناة التنبيهات»** يعرض حالة القناة
+دون كشف التوكن (يظهر آخر 4 أحرف فقط): `Telegram ✅ (…9xYz → chat 123456789)`.
+
+### متى يُنبَّه؟
+
+| الحالة | التنبيه | التوقيت |
+|---|---|---|
+| إخفاق متتالٍ (عدد `failure_threshold`) | 🔴 توقف | فورًا، **مرة واحدة لكل حادثة** |
+| عودة الموقع بعد حادثة | 🟢 عودة للعمل | فورًا عند أول نجاح |
+| `latency_alert_ms` متجاوَز `latency_consecutive` مرات | 🐢 بطء | بعد تكرار البطء لا ارتفاع عابر |
+| `tls_days_left ≤ tls_warn_days` | 🔐 شهادة SSL | مرة كل يوم كحد أقصى |
+
+كل هذه القيم (وبدء التشغيل عبر Webhook بدل/إضافة إلى Telegram) في `config/alerts.yaml`.
+
+### في GitHub Actions
+
+أضف السرّين `TELEGRAM_BOT_TOKEN` و`TELEGRAM_CHAT_ID` في
+`Settings → Secrets and variables → Actions`، وسير عمل `monitor.yml` سيُرسل
+تنبيهات Telegram كل 15 دقيقة بلا أي سيرفر دائم.
 
 ## الجدولة المجانية عبر GitHub Actions
 
@@ -140,11 +178,12 @@ app/
   stats.py         حسابات مشتركة (p95، نسبة التوفّر)
   checker.py       محرّك الفحص: DNS/TLS/TTFB + فحص المتصفح + التحقق من المحتوى
   scheduler.py     مجدول غير متزامن + إدارة الحوادث
-  alerts.py        سجل + Webhook
+  alerts.py        Telegram Bot API + Webhook + تهدئة التنبيهات
   main.py          واجهة FastAPI + API
   cli.py           سطر الأوامر
   static/          لوحة تحكم عربية RTL بلا أي مكتبة خارجية
-config/            owned_domains.yaml (الملكية) + targets.yaml (الأهداف)
+config/            owned_domains.yaml (الملكية) + targets.yaml (الأهداف) + alerts.yaml (التنبيهات)
+.env.example       قالب متغيرات البيئة (التوكن والرقم) — انسخه إلى .env
 loadtest/          k6 (smoke/load/stress) + بديل asyncio + حاجز الملكية
 tests/             pytest: النواة + خلفية Postgres
 tests/e2e/         Playwright: محليًا / موقعك / BrowserStack
@@ -162,6 +201,7 @@ Dockerfile · docker-compose.yml   تشغيل اللوحة مع Postgres
 | `POST /api/check-all` | فحص كل الأهداف |
 | `GET /api/incidents` | سجل الحوادث |
 | `GET /api/config/domains` | النطاقات المسموح بفحصها |
+| `POST /api/alerts/test` | إرسال تنبيه تجريبي للقنوات المهيّأة |
 
 ## الاختبارات
 
@@ -175,6 +215,7 @@ pytest tests/e2e -q       # اختبارات المتصفح فقط
 |---|---|
 | `tests/test_core.py` | حاجز الملكية، النطاقات الشبيهة، الإحصاءات، دورة الحوادث |
 | `tests/test_postgres_backend.py` | خلفية Postgres على خادم حقيقي (أو تتخطى نفسها) |
+| `tests/test_alerts.py` | قناة Telegram: شكل الطلب، إعادة المحاولة، التهدئة، التهريب، وتكامل HTTP حقيقي |
 | `tests/e2e/test_dashboard.py` | عقد API + سلوك اللوحة على متصفح حقيقي |
 
 ---
@@ -188,6 +229,7 @@ pytest tests/e2e -q       # اختبارات المتصفح فقط
 | **DigitalOcean / Render / Railway** أرصدة | استضافة اللوحة 24/7 مع `docker compose up` (Postgres + اللوحة) |
 | **Namecheap / .me** | نطاق لمشروعك + شهادة SSL حقيقية لتراقبها (اختبرها بانتهاء قريب) |
 | **Copilot / JetBrains** | تطوير اللوحة نفسها |
+| **Telegram Bot API** | مجاني تمامًا وبلا حدود عملية لتنبيهاتك — لا يحتاج خطة مدفوعة |
 
 ### تفعيل BrowserStack في 4 خطوات
 

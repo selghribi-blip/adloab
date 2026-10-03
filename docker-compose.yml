@@ -20,7 +20,10 @@ services:
     build: .
     environment:
       ADLOAB_DB_URL: postgresql://adloab:adloab@db:5432/adloab
-      # ALERT_WEBHOOK_URL: https://ntfy.sh/your-topic
+      # تُقرأ من ملف .env المجاور (مستبعد من Git) — لا تكتب التوكن هنا مباشرة
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
     ports:
       - "8000:8000"
     depends_on:

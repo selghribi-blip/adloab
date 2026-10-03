@@ -17,6 +17,7 @@
     </div>
     <div class="actions">
       <span id="last-update" class="muted">—</span>
+      <button id="test-alert" class="btn" title="إرسال رسالة تجريبية إلى Telegram">تنبيه تجريبي</button>
       <button id="check-all" class="btn primary">افحص كل الأهداف الآن</button>
     </div>
   </header>
@@ -39,6 +40,15 @@
         </thead>
         <tbody><tr><td colspan="5" class="muted">لا توجد حوادث مسجّلة.</td></tr></tbody>
       </table>
+    </section>
+
+    <section class="panel">
+      <h2>قناة التنبيهات</h2>
+      <p class="muted small">
+        يُخزَّن رمز البوت في متغير البيئة <code>TELEGRAM_BOT_TOKEN</code> ورقم المحادثة في
+        <code>TELEGRAM_CHAT_ID</code> — لا تُكتب في الملفات المتتبَّعة في Git.
+      </p>
+      <div id="alerts-status" class="chips"><span class="chip">جارٍ التحميل…</span></div>
     </section>
 
     <section class="panel">

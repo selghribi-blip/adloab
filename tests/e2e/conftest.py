@@ -85,6 +85,13 @@ def base_url() -> str:
 
 @pytest.fixture(scope="session")
 def playwright():
+    # مهم: سياق Playwright المتزامن يشغّل حلقة أحداث في الخيط الحالي،
+    # لذا نتخطى قبل فتحه حتى لا نُفسد اختبارات أخرى تستخدم asyncio.
+    if not _any_browser_available():
+        pytest.skip(
+            "لا يوجد متصفح: ثبّته بالأمر «playwright install --with-deps chromium» "
+            "أو عيّن بيانات BrowserStack"
+        )
     with sync_playwright() as instance:
         yield instance
 
@@ -93,6 +100,23 @@ def _browserstack_credentials() -> tuple[str, str] | None:
     user = os.getenv("BROWSERSTACK_USERNAME", "").strip()
     key = os.getenv("BROWSERSTACK_ACCESS_KEY", "").strip()
     return (user, key) if user and key else None
+
+
+def _chromium_installed() -> bool:
+    """هل يوجد متصفح محلي؟ (نفحص قبل فتح سياق Playwright لنتخطى بسرعة وبلا آثار جانبية)."""
+    root = Path(
+        os.getenv("PLAYWRIGHT_BROWSERS_PATH") or (Path.home() / ".cache" / "ms-playwright")
+    )
+    if not root.exists():
+        return False
+    return any(
+        entry.name.startswith(("chromium-", "chromium_headless_shell-", "chrome-"))
+        for entry in root.iterdir()
+    )
+
+
+def _any_browser_available() -> bool:
+    return _browserstack_credentials() is not None or _chromium_installed()
 
 
 def _connect_browserstack(playwright, credentials: tuple[str, str]):
@@ -142,7 +166,7 @@ def browser(playwright):
         browser = playwright.chromium.launch(headless=True)
     except Exception as exc:  # noqa: BLE001
         pytest.skip(
-            "لا يوجد متصفح محلي. ثبّته بالأمر: playwright install --with-deps chromium "
+            "تعذّر تشغيل المتصفح المحلي. ثبّته بالأمر: playwright install --with-deps chromium "
             f"({type(exc).__name__})"
         )
     yield browser

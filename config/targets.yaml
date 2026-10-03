@@ -10,8 +10,8 @@ settings:
   user_agent: "AdloabUptimeBot/1.0 (uptime monitoring; owner-verified)"
   max_body_kb: 64           # أقصى حجم يُقرأ من الصفحة لحساب الزمن الكامل
   failure_threshold: 2      # عدد الإخفاقات المتتالية قبل فتح "حادثة"
-  alert_webhook: ""         # رابط Webhook (Slack/Discord/Telegram/Ntfy) - اختياري
-  alerts_enabled: false     # فعّلها بعد وضع الرابط أعلاه
+# إعدادات التنبيهات (Telegram/Webhook) انتقلت إلى config/alerts.yaml
+# ومتغيرات البيئة TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID · ALERT_WEBHOOK_URL
 
 targets:
   # فحص ذاتي: يقيس اللوحة نفسها — يعمل دائمًا بلا إنترنت ويؤكد سلامة المحرّك

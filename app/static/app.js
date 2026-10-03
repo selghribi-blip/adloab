@@ -158,6 +158,12 @@ async function refresh() {
     ? Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) + " ms"
     : "—";
   document.querySelector("#t-incidents").textContent = data.incidents_open.length;
+  if (data.alerts?.channels) {
+    document.querySelector("#alerts-status").innerHTML = data.alerts.channels
+      .split(" · ")
+      .map((c) => `<span class="chip">${c}</span>`)
+      .join("");
+  }
   const storage = data.settings?.storage === "postgresql" ? "PostgreSQL" : "SQLite";
   document.querySelector("#last-update").textContent =
     `آخر تحديث: ${new Date().toLocaleTimeString("ar-MA")} · التخزين: ${storage}`;
@@ -178,6 +184,20 @@ async function loadDomains() {
       .join("");
   } catch { /* تجاهل */ }
 }
+
+document.querySelector("#test-alert").addEventListener("click", async (e) => {
+  e.target.disabled = true;
+  e.target.textContent = "جارٍ الإرسال…";
+  try {
+    const { sent } = await api("/api/alerts/test", { method: "POST" });
+    alert(sent ? "✅ تم إرسال التنبيه التجريبي — راجع Telegram." : "⚠️ لم يُرسل — راجع سجلّ الخادم.");
+  } catch (err) {
+    alert("تعذّر إرسال التنبيه: " + err.message);
+  } finally {
+    e.target.disabled = false;
+    e.target.textContent = "تنبيه تجريبي";
+  }
+});
 
 document.querySelector("#check-all").addEventListener("click", async (e) => {
   e.target.disabled = true;
