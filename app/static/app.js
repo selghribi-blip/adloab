@@ -158,7 +158,9 @@ async function refresh() {
     ? Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) + " ms"
     : "—";
   document.querySelector("#t-incidents").textContent = data.incidents_open.length;
-  document.querySelector("#last-update").textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-MA");
+  const storage = data.settings?.storage === "postgresql" ? "PostgreSQL" : "SQLite";
+  document.querySelector("#last-update").textContent =
+    `آخر تحديث: ${new Date().toLocaleTimeString("ar-MA")} · التخزين: ${storage}`;
 
   const cards = document.querySelector("#cards");
   cards.innerHTML = "";

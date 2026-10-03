@@ -1,0 +1,81 @@
+name: اختبار الحمل
+
+on:
+  push:
+    branches: [main, "arena/**"]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "رابط موقعك (يجب أن يكون نطاقه في config/owned_domains.yaml)"
+        required: true
+        default: "http://127.0.0.1:8000/healthz"
+      scenario:
+        description: "السيناريو"
+        type: choice
+        options: [smoke, load, stress]
+        default: load
+      vus:
+        description: "عدد المستخدمين الوهميين"
+        default: "20"
+      duration:
+        description: "مدة الثبات (مثل 1m أو 30s)"
+        default: "1m"
+      i_own_this_site:
+        description: "أؤكد أنني أملك الموقع أو لدي إذن كتابي باختباره"
+        type: choice
+        options: ["no", "yes"]
+        default: "no"
+
+jobs:
+  # 1) اختبار ذاتي على اللوحة نفسها — يعمل في كل push بلا إعداد
+  self-load-test:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+      - name: انتظار الجهوزية
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/healthz && break || sleep 1
+          done
+      - name: اختبار حمل ذاتي (asyncio، بلا تثبيت)
+        run: |
+          python loadtest/py_load.py --url http://127.0.0.1:8000/healthz \
+            --vus 20 --duration 20 --max-p95 800 --i-own-this-site
+
+  # 2) اختبار موجّه لموقعك — يدوي فقط، ويحتاج تأكيدًا صريحًا
+  target-load-test:
+    if: github.event_name == 'workflow_dispatch' && inputs.i_own_this_site == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: grafana/setup-k6-action@v1
+      - name: التحقق من الملكية ثم التشغيل
+        run: |
+          python loadtest/run.py \
+            --url "${{ inputs.url }}" \
+            --scenario "${{ inputs.scenario }}" \
+            --vus "${{ inputs.vus }}" \
+            --duration "${{ inputs.duration }}" \
+            --i-own-this-site
+
+  # 3) تنبيه واضح إن حاول أحد تشغيل الاختبار الموجّه بلا تأكيد الملكية
+  refuse-without-confirmation:
+    if: github.event_name == 'workflow_dispatch' && inputs.i_own_this_site != 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "🚫 لم يتم التأكيد على ملكية الموقع (i_own_this_site != yes)."
+          echo "اختبار الحمل على موقع لا تملكه = هجوم حجب خدمة (DoS) — لن يُشغّل."
+          exit 1

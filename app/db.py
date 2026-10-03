@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .config import DATA_DIR
+from .stats import window_stats_from_rows
 
 DB_PATH = Path(DATA_DIR) / "uptime.sqlite3"
 

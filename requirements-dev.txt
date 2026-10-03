@@ -1,0 +1,7 @@
+# أدوات التطوير والاختبار (لا يحتاجها التشغيل العادي)
+-r requirements.txt
+
+pytest>=8.0
+playwright>=1.45          # اختبارات E2E محليًا وعلى BrowserStack عبر Playwright
+psycopg[binary]>=3.1      # خلفية Postgres
+pgserver>=0.1             # خادم Postgres مؤقت للاختبارات (يُتخطّى إن لم يتوفر)

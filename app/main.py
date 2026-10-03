@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import db
+from . import store as db
 from .checker import make_client, run_check
 from .config import ROOT, NotOwnedError, load_targets
 from .scheduler import check_all, loop
@@ -79,6 +79,7 @@ def status() -> dict:
             "timeout_seconds": _state["settings"].timeout_seconds,
             "failure_threshold": _state["settings"].failure_threshold,
             "alerts_enabled": _state["settings"].alerts_enabled,
+            "storage": db.backend_name(),
         },
     }
 

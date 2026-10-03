@@ -79,20 +79,77 @@ settings:
 ويفشل الـ job عند توقف هدف — فتصلك رسالة بريد تلقائية من GitHub. أضف في
 `Settings → Secrets` المتغير `ADLOAB_EXTRA_DOMAINS` بنطاقك إن أردت عدم تخزينه في الملف.
 
+## التخزين: SQLite أو Postgres
+
+الافتراضي SQLite (ملف واحد، بلا سيرفر). للتبديل إلى Postgres (تاريخ أطول، أو عدة نسخ
+من اللوحة تعمل معًا) ضع متغير البيئة فقط:
+
+```bash
+export ADLOAB_DB_URL="postgresql://adloab:adloab@localhost:5432/adloab"
+uvicorn app.main:app --host 0.0.0.0 --port 8000    # يلاحظ الفرق تلقائيًا
+```
+
+أو بأمر واحد عبر Docker:
+
+```bash
+docker compose up        # Postgres + اللوحة معًا
+```
+
+المحدِّد في `app/store.py`، والتنفيذان يتشاركان نفس الحسابات في `app/stats.py`.
+الاختبارات تغطي الخلفيتين: `tests/test_core.py` (SQLite) و`tests/test_postgres_backend.py`
+(Postgres حقيقي — يشغّله الاختبار تلقائيًا عبر `pgserver` إن لم يكن لديك خادم).
+
+## اختبار الحمل (لمواقعك فقط)
+
+```bash
+# بديل بلا تثبيت — يعمل فورًا
+python loadtest/py_load.py --url http://127.0.0.1:8000/healthz --vus 20 --duration 30 --i-own-this-site
+
+# مسار k6 الكامل (smoke / load / stress)
+python loadtest/run.py --url https://staging.mysite.ma --scenario load --vus 30 --duration 2m --i-own-this-site
+```
+
+كلاهما يمر عبر **حاجز الملكية** نفسه: نطاق غير مدرج في `config/owned_domains.yaml` = رفض فوري.
+التفاصيل والأرقام المرجعية في [`loadtest/README.md`](loadtest/README.md).
+
+> ⚠️ لا تشغّل `stress` على الإنتاج — استخدم نسخة staging. اختبار الحمل على موقع لا تملكه
+> يُعدّ هجوم حجب خدمة (DoS) وهو مخالف للقانون ولشروط مزوّدي الاستضافة.
+
+## اختبارات المتصفح (E2E) وBrowserStack
+
+نفس الاختبارات تعمل في ثلاثة أوضاع بلا تعديل:
+
+```bash
+pytest tests/e2e -q                          # 1) Chromium محلي (يشغّل اللوحة تلقائيًا)
+E2E_BASE_URL=https://staging.mysite.ma pytest tests/e2e -q   # 2) موقعك
+BROWSERSTACK_USERNAME=... BROWSERSTACK_ACCESS_KEY=... \
+  BROWSERSTACK_BROWSER=safari BROWSERSTACK_OS="OS X" pytest tests/e2e -q   # 3) متصفح حقيقي
+```
+
+تغطّي: اتجاه RTL، رسم البطاقات، شارات الحالة، زر «افحص الآن»، ظهور قائمة النطاقات المصرّح بها،
+خلوّ الصفحة من أخطاء console، والتجاوب على مقاسات الجوال والتابلت.
+
 ## بنية المشروع
 
 ```
 app/
-  config.py      الإعدادات + حاجز الملكية (Ownership Guard)
-  db.py          SQLite: فحوصات، إحصاءات، حوادث
-  checker.py     محرّك الفحص: DNS/TLS/TTFB + فحص المتصفح + التحقق من المحتوى
-  scheduler.py   مجدول غير متزامن + إدارة الحوادث
-  alerts.py      سجل + Webhook
-  main.py        واجهة FastAPI + API
-  cli.py         سطر الأوامر
-  static/        لوحة تحكم عربية RTL بلا أي مكتبة خارجية
-config/          owned_domains.yaml (الملكية) + targets.yaml (الأهداف)
-tests/           اختبارات pytest (حاجز الملكية، الإحصاءات، دورة الحادثة)
+  config.py        الإعدادات + حاجز الملكية (Ownership Guard)
+  store.py         محدِّد خلفية التخزين (SQLite / Postgres)
+  db.py            خلفية SQLite: فحوصات، إحصاءات، حوادث
+  db_postgres.py   خلفية Postgres بنفس الواجهة
+  stats.py         حسابات مشتركة (p95، نسبة التوفّر)
+  checker.py       محرّك الفحص: DNS/TLS/TTFB + فحص المتصفح + التحقق من المحتوى
+  scheduler.py     مجدول غير متزامن + إدارة الحوادث
+  alerts.py        سجل + Webhook
+  main.py          واجهة FastAPI + API
+  cli.py           سطر الأوامر
+  static/          لوحة تحكم عربية RTL بلا أي مكتبة خارجية
+config/            owned_domains.yaml (الملكية) + targets.yaml (الأهداف)
+loadtest/          k6 (smoke/load/stress) + بديل asyncio + حاجز الملكية
+tests/             pytest: النواة + خلفية Postgres
+tests/e2e/         Playwright: محليًا / موقعك / BrowserStack
+Dockerfile · docker-compose.yml   تشغيل اللوحة مع Postgres
+.github/workflows/  مراقبة دورية · اختبارات Postgres · E2E · اختبار حمل
 ```
 
 ## واجهة API
@@ -109,9 +166,16 @@ tests/           اختبارات pytest (حاجز الملكية، الإحصا
 ## الاختبارات
 
 ```bash
-pip install pytest
-pytest -q
+pip install -r requirements-dev.txt
+pytest -q                 # النواة + Postgres + E2E (يتخطى ما لا يستطيع تشغيله بلطف)
+pytest tests/e2e -q       # اختبارات المتصفح فقط
 ```
+
+| الملف | يغطّي |
+|---|---|
+| `tests/test_core.py` | حاجز الملكية، النطاقات الشبيهة، الإحصاءات، دورة الحوادث |
+| `tests/test_postgres_backend.py` | خلفية Postgres على خادم حقيقي (أو تتخطى نفسها) |
+| `tests/e2e/test_dashboard.py` | عقد API + سلوك اللوحة على متصفح حقيقي |
 
 ---
 
@@ -119,21 +183,24 @@ pytest -q
 
 | الأداة | الاستخدام المشروع في هذا المشروع |
 |---|---|
-| **GitHub Actions** | جدولة الفحوصات مجانًا + CI للاختبارات |
-| **BrowserStack** (ساعات مجانية للطلاب) | تشغيل `tests/e2e` لموقعك على متصفحات وأجهزة حقيقية |
-| **DigitalOcean / Heroku** أرصدة | استضافة اللوحة 24/7 بدل تشغيلها محليًا |
-| **Namecheap / .me** | نطاق لمشروعك + شهادة SSL لاختبار المراقبة |
-| **Copilot / JetBrains** | تطوير المشروع نفسه |
+| **GitHub Actions** | جدولة الفحوصات كل 15 دقيقة + CI (اختبارات Postgres، E2E، اختبار حمل ذاتي) مجانًا على المستودعات العامة |
+| **BrowserStack** (خطة الطلاب) | تشغيل `tests/e2e` على Chrome وFirefox وSafari وأجهزة حقيقية — `.github/workflows/e2e.yml` |
+| **DigitalOcean / Render / Railway** أرصدة | استضافة اللوحة 24/7 مع `docker compose up` (Postgres + اللوحة) |
+| **Namecheap / .me** | نطاق لمشروعك + شهادة SSL حقيقية لتراقبها (اختبرها بانتهاء قريب) |
+| **Copilot / JetBrains** | تطوير اللوحة نفسها |
 
-مثال تشغيل على BrowserStack من GitHub Actions (لموقعك فقط):
+### تفعيل BrowserStack في 4 خطوات
 
-```yaml
-- name: BrowserStack smoke test
-  env:
-    BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
-    BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-  run: npx browserstack-cypress run --spec "cypress/e2e/smoke.cy.js"
-```
+1. فعّل حزمة الطلاب: <https://education.github.com/pack> → BrowserStack.
+2. وقّع دخولك على <https://www.browserstack.com> من صفحة الحزمة، ثم
+   `Account → Settings → Access Key` وانسخ: **Username** و **Access Key**.
+3. أضفهما في مستودعك: `Settings → Secrets and variables → Actions → New repository secret`:
+   `BROWSERSTACK_USERNAME` و `BROWSERSTACK_ACCESS_KEY`.
+4. شغّل سير العمل `.github/workflows/e2e.yml` يدويًا وأدخل `base_url` = رابط موقعك العام.
+   المتصفحات تتصل من خوادم BrowserStack، لذا يجب أن يكون الرابط **متاحًا للعامة**
+   (أو فعّل `BROWSERSTACK_LOCAL=true` مع نفق BrowserStack Local).
+
+لتوسيع التغطية: أضف تركيبات جديدة في `strategy.matrix` داخل الملف نفسه (مثل iPhone أو Android).
 
 ## الترخيص
 

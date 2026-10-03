@@ -1,0 +1,90 @@
+name: اختبارات المتصفح (E2E)
+
+on:
+  push:
+    branches: [main, "arena/**"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "رابط موقعك العام لاختباره على BrowserStack (اتركه فارغًا لاختبار اللوحة محليًا)"
+        required: false
+        default: ""
+
+jobs:
+  # 1) محلي داخل الـ runner: Chromium حقيقي + اللوحة نفسها — يعمل دائمًا
+  local-chromium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: تثبيت Chromium
+        run: playwright install --with-deps chromium
+      - name: تشغيل اختبارات E2E
+        run: pytest tests/e2e -q
+      - name: رفع تقرير الفشل (لقطات)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            test-results/
+            *.png
+          if-no-files-found: ignore
+
+  # 2) BrowserStack: متصفحات ونظم تشغيل حقيقية — يُفعّل بإضافة السرّين
+  browserstack:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chrome
+            os: Windows
+            os_version: "11"
+          - browser: firefox
+            os: OS X
+            os_version: Ventura
+          - browser: safari
+            os: OS X
+            os_version: Ventura
+          # أجهزة حقيقية: فعّل هذه الأسطر لإضافة أندرويد وiPhone
+          # - browser: chrome
+          #   os: android
+          #   os_version: "13.0"
+          #   device: Samsung Galaxy S23
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+
+      - name: هل أسرار BrowserStack متوفرة؟
+        id: check
+        run: |
+          if [ -n "${{ secrets.BROWSERSTACK_USERNAME }}" ] && [ -n "${{ secrets.BROWSERSTACK_ACCESS_KEY }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "ℹ️  لم تُضف أسرار BrowserStack — تُخطّى هذه المهمة. راجع README لإضافتها."
+          fi
+
+      - name: تشغيل E2E على BrowserStack
+        if: steps.check.outputs.available == 'true'
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_BROWSER: ${{ matrix.browser }}
+          BROWSERSTACK_OS: ${{ matrix.os }}
+          BROWSERSTACK_OS_VERSION: ${{ matrix.os_version }}
+          BROWSERSTACK_BUILD: "adloab #${{ github.run_number }}"
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          E2E_TEST_NAME: "${{ matrix.browser }} على ${{ matrix.os }} ${{ matrix.os_version }}"
+        run: pytest tests/e2e -q

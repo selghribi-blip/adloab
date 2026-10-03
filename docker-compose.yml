@@ -1,0 +1,32 @@
+# تشغيل اللوحة مع Postgres بأمر واحد:  docker compose up
+# (Postgres هنا للتخزين الدائم عند تشغيل اللوحة على VPS أو خطة استضافة مجانية)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: adloab
+      POSTGRES_USER: adloab
+      POSTGRES_PASSWORD: adloab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adloab -d adloab"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    environment:
+      ADLOAB_DB_URL: postgresql://adloab:adloab@db:5432/adloab
+      # ALERT_WEBHOOK_URL: https://ntfy.sh/your-topic
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -14,7 +14,7 @@ import asyncio
 import json
 import sys
 
-from . import db
+from . import store as db
 from .config import load_owned_domains, load_targets
 from .scheduler import check_all
 

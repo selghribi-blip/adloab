@@ -8,3 +8,12 @@ data/
 *.sqlite3-shm
 .pytest_cache/
 .env
+
+# مخرجات اختبار الحمل
+.k6/
+loadtest-results/
+test-results/
+*.summary.json
+
+# بيانات Postgres المحلية عند التجربة بـ pgserver
+pgdata/

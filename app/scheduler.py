@@ -7,7 +7,7 @@ import logging
 import time
 from typing import Any
 
-from . import db
+from . import store as db
 from .alerts import send_alert
 from .checker import make_client, run_check
 from .config import Settings, Target
