@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adloab Uptime — مراقبة المواقع</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>Adloab Uptime</h1>
+        <p>مراقبة التوفّر والأداء وشهادات SSL للمواقع التي تملكها</p>
+      </div>
+    </div>
+    <div class="actions">
+      <span id="last-update" class="muted">—</span>
+      <button id="check-all" class="btn primary">افحص كل الأهداف الآن</button>
+    </div>
+  </header>
+
+  <section class="tiles" id="tiles">
+    <div class="tile"><span class="tile-label">أهداف مراقبة</span><strong id="t-targets">—</strong></div>
+    <div class="tile"><span class="tile-label">متوسط التوفّر (24س)</span><strong id="t-uptime">—</strong></div>
+    <div class="tile"><span class="tile-label">متوسط زمن الاستجابة</span><strong id="t-latency">—</strong></div>
+    <div class="tile"><span class="tile-label">حوادث مفتوحة</span><strong id="t-incidents">—</strong></div>
+  </section>
+
+  <main>
+    <div id="cards" class="grid"></div>
+
+    <section class="panel">
+      <h2>سجل الحوادث</h2>
+      <table id="incidents">
+        <thead>
+          <tr><th>الهدف</th><th>البداية</th><th>الانتهاء</th><th>المدة</th><th>السبب</th></tr>
+        </thead>
+        <tbody><tr><td colspan="5" class="muted">لا توجد حوادث مسجّلة.</td></tr></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>نطاقات مصرّح بفحصها</h2>
+      <p class="muted small">
+        يفحص النظام هذه النطاقات فقط، من <code>config/owned_domains.yaml</code>.
+      </p>
+      <div id="domains" class="chips"></div>
+    </section>
+  </main>
+
+  <footer class="muted small">
+    Adloab Uptime — أداة مراقبة لمواقعك الخاصة. لا تُستخدم لفحص مواقع الآخرين أو لتوليد زيارات.
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+# ============================================================
+#  أهداف المراقبة (Monitoring Targets)
+# ============================================================
+#  كل هدف يجب أن يكون نطاقه موجودًا في config/owned_domains.yaml
+# ============================================================
+
+settings:
+  concurrency: 4            # عدد الفحوصات المتوازية كحد أقصى
+  timeout_seconds: 15       # مهلة الطلب الواحدة
+  user_agent: "AdloabUptimeBot/1.0 (uptime monitoring; owner-verified)"
+  max_body_kb: 64           # أقصى حجم يُقرأ من الصفحة لحساب الزمن الكامل
+  failure_threshold: 2      # عدد الإخفاقات المتتالية قبل فتح "حادثة"
+  alert_webhook: ""         # رابط Webhook (Slack/Discord/Telegram/Ntfy) - اختياري
+  alerts_enabled: false     # فعّلها بعد وضع الرابط أعلاه
+
+targets:
+  # فحص ذاتي: يقيس اللوحة نفسها — يعمل دائمًا بلا إنترنت ويؤكد سلامة المحرّك
+  - name: "لوحة المراقبة (فحص ذاتي)"
+    url: "http://127.0.0.1:8000/healthz"
+    interval_seconds: 60
+    method: GET
+    expect_status: [200]
+    expect_text: "ok"
+    check_tls: false
+    enabled: true
+
+  - name: "المثال الرسمي"
+    url: "https://example.com"
+    interval_seconds: 60
+    method: GET
+    expect_status: [200]
+    expect_text: "Example Domain"
+    check_tls: true
+    browser_check: false      # فحص بمتصفح حقيقي (يتطلب Playwright)
+    enabled: true
+
+  - name: "خدمة HTTP للتجارب"
+    url: "https://httpbin.org/status/200"
+    interval_seconds: 120
+    method: GET
+    expect_status: [200]
+    check_tls: true
+    browser_check: false
+    enabled: true

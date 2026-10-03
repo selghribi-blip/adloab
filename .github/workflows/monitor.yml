@@ -1,0 +1,40 @@
+name: مراقبة المواقع
+
+on:
+  schedule:
+    # كل 15 دقيقة (أوقات UTC) — مجاني بالكامل على المستودعات العامة
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت المتطلبات
+        run: pip install -r requirements.txt
+
+      - name: تشغيل الفحص
+        env:
+          ADLOAB_EXTRA_DOMAINS: ${{ secrets.ADLOAB_EXTRA_DOMAINS }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: python -m app.cli check
+
+      - name: ملخّص آخر 24 ساعة
+        if: always()
+        run: python -m app.cli status
+
+      - name: رفع قاعدة النتائج
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uptime-db
+          path: data/uptime.sqlite3
+          retention-days: 7
